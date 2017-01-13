@@ -1,0 +1,4 @@
+myPushButton	KEYWORD1
+isHeld	KEYWORD2
+isPressed	KEYWORD2
+isReleased	KEYWORD2
