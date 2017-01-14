@@ -9,6 +9,7 @@
 #include <PubSubClient.h>
 #include <ArduinoOTA.h>
 
+// types
 typedef void ( *MessageCallbackType )( char* msg );
 typedef void ( *SubscriptionCallbackType )( void );
 
@@ -16,7 +17,7 @@ class MyWifiHelper
 {
     public:
 
-        MyWifiHelper(MessageCallbackType messageCallback);
+    	MyWifiHelper(MessageCallbackType messageCallback);
         int setupWifi();
         IPAddress getWifiIP();
 		void setupOTA(char* host);
@@ -24,7 +25,7 @@ class MyWifiHelper
 		void setupMqtt();
 		void loopMqtt();
 		void mqttPublish(char* topic, char* payload);
-		bool mqttAddSubscription(char* topic);
+		bool mqttAddSubscription(char* topic, SubscriptionCallbackType callback);
 
     private:
     	MessageCallbackType _messageCallback;       // The listener function

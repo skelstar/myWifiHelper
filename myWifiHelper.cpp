@@ -16,27 +16,9 @@
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-
-//Adafruit_MQTT_Client mqtt(&client, MQTT_SERVER, MQTT_SERVERPORT, MQTT_USERNAME, MQTT_USERNAME, MQTT_KEY);
-//Adafruit_MQTT_Client mqtt(&client, MQTT_SERVER, MQTT_SERVERPORT, MQTT_USERNAME, MQTT_PASSWORD);
-
-// int head = 0;
-// #define MAX_SUBSCRIPTIONS   3
-// Adafruit_MQTT_Subscribe *subscriptions[MAX_SUBSCRIPTIONS];
-
-
-void timecallback(uint32_t current);
-// void devtestcallback(char* message);
-
-int timeZone = -13; // UTC - 4 eastern daylight time (nyc)
-
+// Function Signatures
 void mqttCallback(char *topic, byte* payload, unsigned int length);
 void reconnectMqtt();
-
-
-void devtestcallback(uint32_t message) {
-    Serial.print("devtest: "); Serial.println(message);
-}
 
 /* ------------------------------------------------------------------------------------------ */
 
@@ -114,11 +96,19 @@ void MyWifiHelper::mqttPublish(char* topic, char* payload) {
 
 int head = 0;
 #define MAX_SUBSCRIPTIONS   3
-char* subscriptions[MAX_SUBSCRIPTIONS];
 
-bool MyWifiHelper::mqttAddSubscription(char* topic) {
+struct subscriptionType {
+    char* topic;
+    SubscriptionCallbackType callback;
+};
+
+subscriptionType subscription[MAX_SUBSCRIPTIONS];
+
+bool MyWifiHelper::mqttAddSubscription(char* topic, SubscriptionCallbackType callback) {
     if (head != MAX_SUBSCRIPTIONS-1) {
-        subscriptions[head++] = topic;
+        subscription[head].topic = topic;
+        subscription[head].callback = callback;
+        head++;
         return true;
     }
     return false;
@@ -132,7 +122,7 @@ void reconnectMqtt() {
         if (client.connect(MQTT_CLIENTNAME, MQTT_USERNAME, MQTT_PASSWORD)) {
             Serial.println("connected");
             for (int i=0; i<head; i++) {
-                client.subscribe(subscriptions[i]);
+                client.subscribe(subscription[i].topic);
             }
         } else {
             Serial.print("failed, rc=");
@@ -145,11 +135,18 @@ void reconnectMqtt() {
 }
 
 void mqttCallback(char *topic, byte* payload, unsigned int length) {
-    Serial.print("Message arrived [");
-    Serial.print(topic);
-    Serial.print("] ");
-    for (int i=0;i<length;i++) {
-        Serial.print((char)payload[i]);
+    // Serial.print("Message arrived [");
+    // Serial.print(topic);
+    // Serial.print("] ");
+    // for (int i=0;i<length;i++) {
+    //     Serial.print((char)payload[i]);
+    // }
+    // Serial.println();
+
+    // loop through subscriptions and call the callback for matching topic
+    for (int i=0; i<head; i++) {
+        if (strcmp(subscription[i].topic, topic) == 0) {
+            subscription[i].callback();
+        }
     }
-    Serial.println();
 }
