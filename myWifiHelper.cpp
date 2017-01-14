@@ -1,83 +1,51 @@
-#include "Arduino.h"
-#include "EventManager.h"
-#include "myPushButton.h"
+#include "ESP8266WiFi.h"
+#include "ESP8266mDNS.h"
+#include "WiFiUdp.h"
+#include "ArduinoOTA.h"
+#include "myWifiHelper.h"
+#include "wificonfig.h"
 
-EventManager evM;
-#define EVENT_CODE EventManager::kEventUser9
 
-myPushButton::myPushButton(uint8_t pin, bool pullUp, uint16_t heldDurationMs, uint8_t lowState, EventListener listenerCallback) {
+/* ------------------------------------------------------------------------------------------ */
 
-    _pin = pin;
-    _pullUp = pullUp;
-    _lowState = lowState;
-    _heldDurationMillis = heldDurationMs;
+MyWifiHelper::MyWifiHelper() {
 
-    _state = ST_NOT_HELD;
-
-    evM.addListener(EVENT_CODE, listenerCallback);
-
-    init2();
 }
 
-bool myPushButton::singleButtonPush() {
-    return true;    // _state == HELD_FOR_LESS_THAN_HELD_TIME
-}
+void MyWifiHelper::setupWifi() {
 
-void myPushButton::serviceEvents() {
-    bool buttonPressed = isPressed();
-
-    if (_state == ST_NOT_HELD) {
-        if (buttonPressed) {
-            _state = EV_BUTTON_PRESSED;
-        }
-
-    } else if (_state == EV_BUTTON_PRESSED ) {
-        _heldBeginMillis = millis();
-        evM.queueEvent(EVENT_CODE, _state);
-        _state = ST_WAIT_FOR_HELD_TIME;
-
-    } else if (_state == ST_WAIT_FOR_HELD_TIME) {
-        if (buttonPressed && isHeldForLongEnough()) {
-            _state = EV_HELD_FOR_LONG_ENOUGH;
-        } else if (!buttonPressed) {
-            _state = EV_RELEASED;
-        }
-
-    } else if (_state == EV_HELD_FOR_LONG_ENOUGH) {
-        evM.queueEvent(EVENT_CODE, _state);
-        _state = ST_WAITING_FOR_RELEASE;
-
-    } else if (_state == ST_WAITING_FOR_RELEASE) {
-        if (!buttonPressed) {
-            _state = EV_RELEASED;
-        }
-
-    } else if (_state == EV_RELEASED) {
-        evM.queueEvent(EVENT_CODE, _state);
-        _state = ST_NOT_HELD;
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(ssid, password);
+    while (WiFi.waitForConnectResult() != WL_CONNECTED) {
+        Serial.println("Connection Failed! Rebooting...");
+        delay(5000);
+        ESP.restart();
     }
-
-    evM.processEvent();
 }
 
-void myPushButton::init2() 
-{
-    if (_pullUp) {
-        pinMode(_pin, INPUT_PULLUP);
-    } else {
-        pinMode(_pin, INPUT);
-    }
+void MyWifiHelper::setupOTA(char* host) {
 
-    delayMicroseconds(5);
-}
+    ArduinoOTA.setHostname(host);
+    
+    ArduinoOTA.onStart([]() {
+        Serial.println("Start");
+    });
+    ArduinoOTA.onEnd([]() {
+        Serial.println("\nEnd");
+    });
+    
+    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+        Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    });
+    
+    ArduinoOTA.onError([](ota_error_t error) {
+        Serial.printf("Error[%u]: ", error);
+        if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+        else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+        else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+        else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+        else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    });
 
-bool myPushButton::isPressed() 
-{
-    init2();
-    return digitalRead(_pin) != _lowState;
-}
-
-bool myPushButton::isHeldForLongEnough() 
-{
-    return uint16_t(_heldBeginMillis + _heldDurationMillis) <= millis();
+    ArduinoOTA.begin();
 }
