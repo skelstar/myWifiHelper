@@ -6,13 +6,19 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 
+typedef void ( *MessageCallbackType )( char* msg );
+
 class MyWifiHelper 
 {
     public:
-        MyWifiHelper();
-        void setupWifi();
+
+        MyWifiHelper(MessageCallbackType messageCallback);
+        int setupWifi();
+        IPAddress getWifiIP();
 		void setupOTA(char* host);
+
     private:
+    	MessageCallbackType _messageCallback;       // The listener function
 };
 
 #endif

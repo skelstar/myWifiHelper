@@ -6,21 +6,32 @@
 #include "wificonfig.h"
 
 
+#define SUCCESSFUL_CONNECT  1
+#define FAILED_CONNECT      2
+
+
 /* ------------------------------------------------------------------------------------------ */
 
-MyWifiHelper::MyWifiHelper() {
-
+MyWifiHelper::MyWifiHelper(MessageCallbackType messageCallback) {
+    _messageCallback = messageCallback;
 }
 
-void MyWifiHelper::setupWifi() {
+int MyWifiHelper::setupWifi() {
 
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
     while (WiFi.waitForConnectResult() != WL_CONNECTED) {
-        Serial.println("Connection Failed! Rebooting...");
+        _messageCallback("Connection Failed! Rebooting...");
         delay(5000);
         ESP.restart();
     }
+    Serial.print("Success: "); Serial.println(WiFi.localIP());
+    //_messageCallback("Success!");
+    return SUCCESSFUL_CONNECT;
+}
+
+IPAddress MyWifiHelper::getWifiIP() {
+    return WiFi.localIP();
 }
 
 void MyWifiHelper::setupOTA(char* host) {
@@ -48,4 +59,5 @@ void MyWifiHelper::setupOTA(char* host) {
     });
 
     ArduinoOTA.begin();
+    Serial.print("OTA Online.. listening for: "); Serial.println(host);
 }
