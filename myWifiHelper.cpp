@@ -94,7 +94,7 @@ void MyWifiHelper::mqttPublish(char* topic, char* payload) {
     client.publish(topic, payload);
 }
 
-int head = 0;
+int mqttSubHead = 0;
 #define MAX_SUBSCRIPTIONS   3
 
 struct subscriptionType {
@@ -105,23 +105,24 @@ struct subscriptionType {
 subscriptionType subscription[MAX_SUBSCRIPTIONS];
 
 bool MyWifiHelper::mqttAddSubscription(char* topic, SubscriptionCallbackType callback) {
-    if (head != MAX_SUBSCRIPTIONS-1) {
-        subscription[head].topic = topic;
-        subscription[head].callback = callback;
-        head++;
+
+    if (mqttSubHead != MAX_SUBSCRIPTIONS-1) {
+        subscription[mqttSubHead].topic = topic;
+        subscription[mqttSubHead].callback = callback;
+        mqttSubHead++;
         return true;
     }
     return false;
 }
 
 void reconnectMqtt() {
-    // Loop until we're reconnected
+
     while (!client.connected()) {
         Serial.print("Attempting MQTT connection...");
         // Attempt to connect
         if (client.connect(MQTT_CLIENTNAME, MQTT_USERNAME, MQTT_PASSWORD)) {
             Serial.println("connected");
-            for (int i=0; i<head; i++) {
+            for (int i=0; i<mqttSubHead; i++) {
                 client.subscribe(subscription[i].topic);
             }
         } else {
@@ -135,16 +136,8 @@ void reconnectMqtt() {
 }
 
 void mqttCallback(char *topic, byte* payload, unsigned int length) {
-    // Serial.print("Message arrived [");
-    // Serial.print(topic);
-    // Serial.print("] ");
-    // for (int i=0;i<length;i++) {
-    //     Serial.print((char)payload[i]);
-    // }
-    // Serial.println();
 
-    // loop through subscriptions and call the callback for matching topic
-    for (int i=0; i<head; i++) {
+    for (int i=0; i<mqttSubHead; i++) {
         if (strcmp(subscription[i].topic, topic) == 0) {
             subscription[i].callback();
         }
