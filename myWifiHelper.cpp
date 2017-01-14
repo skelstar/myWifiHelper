@@ -1,7 +1,8 @@
 #include "ESP8266WiFi.h"
 #include "ESP8266mDNS.h"
-#include "Adafruit_MQTT.h"
-#include "Adafruit_MQTT_Client.h"
+// #include "Adafruit_MQTT.h"
+// #include "Adafruit_MQTT_Client.h"
+#include "PubSubClient.h"
 #include "WiFiUdp.h"
 #include "ArduinoOTA.h"
 #include "myWifiHelper.h"
@@ -12,22 +13,25 @@
 #define FAILED_CONNECT      2
 
 /* MQTT */
-WiFiClient client;
+WiFiClient espClient;
+PubSubClient client(espClient);
 
-//Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_USERNAME, AIO_KEY);
-Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_PASSWORD);
 
-int head = 0;
-#define MAX_SUBSCRIPTIONS   3
-Adafruit_MQTT_Subscribe *subscriptions[MAX_SUBSCRIPTIONS];
+//Adafruit_MQTT_Client mqtt(&client, MQTT_SERVER, MQTT_SERVERPORT, MQTT_USERNAME, MQTT_USERNAME, MQTT_KEY);
+//Adafruit_MQTT_Client mqtt(&client, MQTT_SERVER, MQTT_SERVERPORT, MQTT_USERNAME, MQTT_PASSWORD);
 
-Adafruit_MQTT_Subscribe timefeed = Adafruit_MQTT_Subscribe(&mqtt, "time/seconds");
-Adafruit_MQTT_Subscribe devtestfeed = Adafruit_MQTT_Subscribe(&mqtt, "dev/test");
+// int head = 0;
+// #define MAX_SUBSCRIPTIONS   3
+// Adafruit_MQTT_Subscribe *subscriptions[MAX_SUBSCRIPTIONS];
+
 
 void timecallback(uint32_t current);
 // void devtestcallback(char* message);
 
 int timeZone = -13; // UTC - 4 eastern daylight time (nyc)
+
+void mqttCallback(char *topic, byte* payload, unsigned int length);
+void reconnectMqtt();
 
 
 void devtestcallback(uint32_t message) {
@@ -37,18 +41,8 @@ void devtestcallback(uint32_t message) {
 /* ------------------------------------------------------------------------------------------ */
 
 MyWifiHelper::MyWifiHelper(MessageCallbackType messageCallback) {
+
     _messageCallback = messageCallback;
-
-    timefeed.setCallback(timecallback);
-    devtestfeed.setCallback(devtestcallback);
-
-    mqtt.subscribe(&timefeed);
-
-    for (int i=0; i<3; i++) {
-        subscriptions[i] = NULL;
-    }
-
-    mqtt.ping();
 }
 
 int MyWifiHelper::setupWifi() {
@@ -97,43 +91,65 @@ void MyWifiHelper::setupOTA(char* host) {
     Serial.print("OTA Online.. listening for: "); Serial.println(host);
 }
 
-bool MyWifiHelper::MQTT_connect() {
-    int8_t ret;
+void MyWifiHelper::setupMqtt() {
 
-    // Stop if already connected.
-    if (mqtt.connected()) {
-        return true;
-    }
-
-    Serial.print("Connecting to MQTT... ");
-
-    while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
-        Serial.println(mqtt.connectErrorString(ret));
-        Serial.println("Retrying MQTT connection in 10 seconds...");
-        mqtt.disconnect();
-        return false;
-    }
-    Serial.println("MQTT Connected!");
-    
-    mqtt.ping();
-
-    mqtt.processPackets(5000);
-
-    return true;
+    client.setServer(MQTT_SERVER, 1883);
+    client.setCallback(mqttCallback);
 }
 
-// int MyWifiHelper::addSubscription(char* feed, SubscriptionCallbackType callback) {
+void MyWifiHelper::loopMqtt() {
+    if (!client.connected()) {
+        reconnectMqtt();
+    }
+    client.loop();
+}
 
-//     int idx = head;
-//     if (head == MAX_SUBSCRIPTIONS - 1) {
-//         // can't add more subscriptions
-//         return -1;
-//     }
-//     head++;
-//     subscriptions[idx] = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME , feed, MQTT_QOS_1);
-    
-// }
+void MyWifiHelper::mqttPublish(char* topic, char* payload) {
+    Serial.print("Publishing to "); 
+    Serial.print(topic);
+    Serial.print(", payload: ");
+    Serial.println(payload);
+    client.publish(topic, payload);
+}
 
-void timecallback(uint32_t current) {
-    Serial.print("Time: "); Serial.println(current);
+int head = 0;
+#define MAX_SUBSCRIPTIONS   3
+char* subscriptions[MAX_SUBSCRIPTIONS];
+
+bool MyWifiHelper::mqttAddSubscription(char* topic) {
+    if (head != MAX_SUBSCRIPTIONS-1) {
+        subscriptions[head++] = topic;
+        return true;
+    }
+    return false;
+}
+
+void reconnectMqtt() {
+    // Loop until we're reconnected
+    while (!client.connected()) {
+        Serial.print("Attempting MQTT connection...");
+        // Attempt to connect
+        if (client.connect(MQTT_CLIENTNAME, MQTT_USERNAME, MQTT_PASSWORD)) {
+            Serial.println("connected");
+            for (int i=0; i<head; i++) {
+                client.subscribe(subscriptions[i]);
+            }
+        } else {
+            Serial.print("failed, rc=");
+            Serial.print(client.state());
+            Serial.println(" try again in 5 seconds");
+            // Wait 5 seconds before retrying
+            delay(5000);
+        }
+    }
+}
+
+void mqttCallback(char *topic, byte* payload, unsigned int length) {
+    Serial.print("Message arrived [");
+    Serial.print(topic);
+    Serial.print("] ");
+    for (int i=0;i<length;i++) {
+        Serial.print((char)payload[i]);
+    }
+    Serial.println();
 }

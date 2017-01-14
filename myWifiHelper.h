@@ -4,8 +4,9 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
-#include <Adafruit_MQTT.h>
-#include <Adafruit_MQTT_Client.h>
+// #include <Adafruit_MQTT.h>
+// #include <Adafruit_MQTT_Client.h>
+#include <PubSubClient.h>
 #include <ArduinoOTA.h>
 
 typedef void ( *MessageCallbackType )( char* msg );
@@ -19,8 +20,11 @@ class MyWifiHelper
         int setupWifi();
         IPAddress getWifiIP();
 		void setupOTA(char* host);
-		bool MQTT_connect();
-		//int addSubscription(char* feed, SubscriptionCallbackType callback);
+
+		void setupMqtt();
+		void loopMqtt();
+		void mqttPublish(char* topic, char* payload);
+		bool mqttAddSubscription(char* topic);
 
     private:
     	MessageCallbackType _messageCallback;       // The listener function
