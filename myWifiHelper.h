@@ -11,7 +11,7 @@
 
 // types
 typedef void ( *MessageCallbackType )( char* msg );
-typedef void ( *SubscriptionCallbackType )( void );
+typedef void ( *SubscriptionCallbackType )( byte* payload, unsigned int length );
 
 class MyWifiHelper 
 {
