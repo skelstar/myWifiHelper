@@ -20,24 +20,44 @@ PubSubClient client(espClient);
 void mqttCallback(char *topic, byte* payload, unsigned int length);
 void reconnectMqtt();
 
+char* _hostname;
+
 /* ------------------------------------------------------------------------------------------ */
 
-MyWifiHelper::MyWifiHelper(MessageCallbackType messageCallback) {
-
-    _messageCallback = messageCallback;
+MyWifiHelper::MyWifiHelper(char* hostname) {
+    _hostname = hostname;
 }
 
 int MyWifiHelper::setupWifi() {
+    setupWifi((char*)ssid);
+}
 
+int MyWifiHelper::setupWifi(char* ssidname) {
+
+    WiFi.hostname(_hostname);
     WiFi.mode(WIFI_STA);
-    WiFi.begin(ssid, password);
+    WiFi.begin(ssidname, password);
     while (WiFi.waitForConnectResult() != WL_CONNECTED) {
-        _messageCallback("Connection Failed! Rebooting...");
+        Serial.println("Connection Failed! Rebooting...");
         delay(5000);
         ESP.restart();
     }
-    Serial.print("Success: "); Serial.println(WiFi.localIP());
-    //_messageCallback("Success!");
+
+    byte mac[6];
+    Serial.print("Success: "); 
+    Serial.print(WiFi.localIP());
+    Serial.print(", MAC - ");
+    Serial.print(mac[5],HEX);
+    Serial.print(":");
+    Serial.print(mac[4],HEX);
+    Serial.print(":");
+    Serial.print(mac[3],HEX);
+    Serial.print(":");
+    Serial.print(mac[2],HEX);
+    Serial.print(":");
+    Serial.print(mac[1],HEX);
+    Serial.print(":");
+    Serial.println(mac[0],HEX);
     return SUCCESSFUL_CONNECT;
 }
 
@@ -70,7 +90,7 @@ void MyWifiHelper::setupOTA(char* host) {
     });
 
     ArduinoOTA.begin();
-    Serial.print("OTA Online.. listening for: "); Serial.println(host);
+    Serial.print("OTA Online (host: "); Serial.print(host); Serial.println(") ");
 }
 
 void MyWifiHelper::setupMqtt() {
