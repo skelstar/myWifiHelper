@@ -146,6 +146,8 @@ bool MyWifiHelper::mqttAddSubscription(char* topic, SubscriptionCallbackType cal
     if (mqttSubHead != MAX_SUBSCRIPTIONS-1) {
         subscription[mqttSubHead].topic = topic;
         subscription[mqttSubHead].callback = callback;
+        Serial.print("Subscribing to: ");
+        Serial.println(topic);
         mqttSubHead++;
         return true;
     }
