@@ -170,6 +170,7 @@ const char* MyWifiHelper::mqttGetJsonCommand(byte *payload) {
 
     if (!root.success()) {
         Serial.println("parseObject() failed");
+        Serial.println((char*)payload);
         return "";
     }
 
