@@ -5,6 +5,8 @@
 #include "ArduinoOTA.h"
 #include "myWifiHelper.h"
 #include "wificonfig.h"
+#include "ArduinoJson.h"            // https://github.com/bblanchon/ArduinoJson
+
 
 
 #define SUCCESSFUL_CONNECT  1
@@ -13,8 +15,8 @@
 #define MQTT_RECONNECT_TIME      1000
 
 /* MQTT */
-WiFiClient espClient;
-PubSubClient client(espClient);
+WiFiClient client;
+PubSubClient mqttclient(client);
 
 // Function Signatures
 void mqttCallback(char *topic, byte* payload, unsigned int length);
@@ -71,6 +73,7 @@ IPAddress MyWifiHelper::getWifiIP() {
 
 void MyWifiHelper::setupOTA(char* host) {
 
+    Serial.println("setupOTA()...");
     ArduinoOTA.setHostname(host);
     
     ArduinoOTA.onStart([]() {
@@ -104,35 +107,41 @@ void MyWifiHelper::handleOTA() {
 
 void MyWifiHelper::setupMqtt() {
 
-    client.setServer(MQTT_SERVER, 1883);
-    client.setCallback(mqttCallback);
+    mqttclient.setServer(MQTT_SERVER, 1883);    // ie "192.168.1.105"
+    mqttclient.setCallback(mqttCallback);
 }
 
 void MyWifiHelper::loopMqtt() {
-    if (!client.connected()) {
+    if (!mqttclient.connected()) {
         reconnectMqtt();
     }
-    client.loop();
+    mqttclient.loop();
 }
 
 bool MyWifiHelper::loopMqttNonBlocking() {
-    if (!client.connected()) {
+    if (!mqttclient.connected()) {
         return reconnectMqttNonBlocking();
     } else {
-        client.loop();
+        mqttclient.loop();
     }
 }
 
 void MyWifiHelper::mqttPublish(char* topic, char* payload) {
-    Serial.print("Publishing to "); 
-    Serial.print(topic);
-    Serial.print(", payload: ");
-    Serial.println(payload);
-    client.publish(topic, payload);
+    mqttclient.publish(topic, payload, true);
+}
+
+void MyWifiHelper::mqttPublish(char* topic, char* payload, bool showDebug) {
+    if (showDebug) {
+        Serial.print("Publishing to "); 
+        Serial.print(topic);
+        Serial.print(", payload: ");
+        Serial.println(payload);
+    }
+    mqttclient.publish(topic, payload);
 }
 
 int mqttSubHead = 0;
-#define MAX_SUBSCRIPTIONS   3
+#define MAX_SUBSCRIPTIONS   6
 
 struct subscriptionType {
     char* topic;
@@ -154,27 +163,47 @@ bool MyWifiHelper::mqttAddSubscription(char* topic, SubscriptionCallbackType cal
     return false;
 }
 
+const char* MyWifiHelper::mqttGetJsonCommand(byte *payload) {
+    StaticJsonBuffer<50> jsonBuffer;
+
+    JsonObject& root = jsonBuffer.parseObject(payload);
+
+    if (!root.success()) {
+        Serial.println("parseObject() failed");
+        return "";
+    }
+
+    value = root["value"];
+    return root["command"];
+}
+
+const char* MyWifiHelper::mqttGetJsonCommandValue() {
+    return value;
+}
+
+//--------------------------------------------------------------------------------
+
 bool reconnectMqttNonBlocking() {
-    if (!client.connected()) {
-        if (client.connect(_hostname, MQTT_USERNAME, MQTT_PASSWORD)) {
+    if (!mqttclient.connected()) {
+        if (mqttclient.connect(_hostname, MQTT_USERNAME, MQTT_PASSWORD)) {
             //Serial.println("connected");
             resubscribeToTopics();
         } 
-        return client.connected();
+        return mqttclient.connected();
     }
 }
 
 void reconnectMqtt() {
 
-    while (!client.connected()) {
+    while (!mqttclient.connected()) {
         Serial.print("Attempting MQTT connection...");
         // Attempt to connect
-        if (client.connect(_hostname, MQTT_USERNAME, MQTT_PASSWORD)) {
+        if (mqttclient.connect(_hostname, MQTT_USERNAME, MQTT_PASSWORD)) {
             Serial.println("connected");
             resubscribeToTopics();
         } else {
             Serial.print("failed, rc=");
-            Serial.print(client.state());
+            Serial.print(mqttclient.state());
             Serial.println(" try again in 5 seconds");
             // Wait 5 seconds before retrying
             delay(MQTT_RECONNECT_TIME);
@@ -184,7 +213,7 @@ void reconnectMqtt() {
 
 void resubscribeToTopics() {
     for (int i=0; i<mqttSubHead; i++) {
-        client.subscribe(subscription[i].topic);
+        mqttclient.subscribe(subscription[i].topic);
     }
 }
 

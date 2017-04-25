@@ -1,35 +1,29 @@
-#include <myPushButton.h>
+#include <myWifiHelper.h>
 //simple.ino
 
-void listener_Button(int eventCode, int eventParam);
+#define WIFI_HOSTNAME "simple-wifihelper-test"
+#define WIFI_OTA_NAME "simple-wifihelper-test-OTA"
 
-myPushButton button(5, true, 2000, 1, listener_Button);
 
-void listener_Button(int eventCode, int eventParam) {
-    
-    switch (eventParam) {
-        
-        case button.EV_BUTTON_PRESSED:     
-            Serial.println("EV_BUTTON_PRESSED");
-            break;          
-        
-        case button.EV_HELD_FOR_LONG_ENOUGH:
-            Serial.println("EV_HELD_FOR_LONG_ENOUGH");
-            break;
-        
-        case button.EV_RELEASED:
-            Serial.println("EV_RELEASED");
-            break;
-    }
-}
+MyWifiHelper wifiHelper(WIFI_HOSTNAME);
 
 void setup() {
 
     Serial.begin(9600);
     delay(200);
     Serial.println("Booting");
+
+    Serial.println("setupWifi()");
+    wifiHelper.setupWifi();
+    Serial.println("setupOTA(WIFI_OTA_NAME)");
+    wifiHelper.setupOTA(WIFI_OTA_NAME);
 }
 
 void loop() {
-	button.serviceEvents();
+
+    ArduinoOTA.handle();
+
+    Serial.print(".");
+
+    delay(10);
 }
