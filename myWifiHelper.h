@@ -26,14 +26,22 @@ class MyWifiHelper
 		void setupOTA(char* host);
         void handleOTA();
 
+        void setupMqtt(char* baseTopic);
 		void setupMqtt();
+
 		void loopMqtt();
         bool loopMqttNonBlocking();
         void mqttPublish(char* topic, char* payload);
         void mqttPublish(char* topic, char* payload, bool showDebug);
+        void mqttPublishBaseAnd(char* verb, char* payload);
+        bool mqttAddSubscriptionBaseAnd(char* verb, SubscriptionCallbackType callback);
 		bool mqttAddSubscription(char* topic, SubscriptionCallbackType callback);
+
         const char* mqttGetJsonCommand(byte *payload);
         const char* mqttGetJsonCommandValue();
+        const char* mqttGetJsonParam(char *payload, const char* param);
+        JsonObject& mqttGetJson(byte *payload);
+        void mqttSendToConsole(char* payload);
 
         const char* value;
 };
