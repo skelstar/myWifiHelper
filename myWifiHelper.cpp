@@ -7,6 +7,7 @@
 #include "wificonfig.h"
 #include "ArduinoJson.h"            // https://github.com/bblanchon/ArduinoJson
 #include "string.h"
+#include "WiFiManager.h"         // https://github.com/tzapu/WiFiManager
 
 //--------------------------------------------------------------------------------
 
@@ -29,15 +30,48 @@ void resubscribeToTopics();
 
 
 char* _hostname;
+bool _addChipId;
 char* _baseTopic;
 //--------------------------------------------------------------------------------
 
 MyWifiHelper::MyWifiHelper(char* hostname) {
-    _hostname = hostname;
+    MyWifiHelper(hostname, false);
+}
+
+MyWifiHelper::MyWifiHelper(char* hostname, bool addChipId) {
+	_hostname = hostname;	
+	_addChipId = addChipId;
 }
 
 int MyWifiHelper::setupWifi() {
     setupWifi((char*)ssid);
+}
+
+// onDemandAP: whether it automatically presents an access point on startup
+int MyWifiHelper::setupWifiManagerOnDemand() {
+
+    WiFiManager wifiManager;
+	wifiManager.startConfigPortal("OnDemandAP"); // automatically presents an access point on startup
+    WiFi.hostname(_hostname);
+    Serial.println("connected with wifi manager...yeey :)");
+    Serial.println(WiFi.localIP());
+}
+
+// onDemandAP: whether it automatically presents an access point on startup
+int MyWifiHelper::setupWifiManagerAutoConnect() {
+
+	// byte mac[6];
+	// char ___hostname[100];
+
+	// WiFi.macAddress(mac);
+	// sprintf(___hostname, "%s", "");
+	// sprintf(___hostname, "%s-%X%X%X", _hostname, mac[3], mac[4], mac[5]);
+
+    WiFiManager wifiManager;
+	wifiManager.autoConnect(_hostname);	
+    WiFi.hostname(_hostname);
+    Serial.println("connected with wifi manager...yeey :)");
+    Serial.println(WiFi.localIP());
 }
 
 int MyWifiHelper::setupWifi(char* ssidname) {

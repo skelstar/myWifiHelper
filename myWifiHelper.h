@@ -7,7 +7,8 @@
 #include <WiFiUdp.h>
 #include <PubSubClient.h>
 #include <ArduinoOTA.h>
-#include <ArduinoJson.h>            // https://github.com/bblanchon/ArduinoJson
+#include <ArduinoJson.h>         // https://github.com/bblanchon/ArduinoJson
+#include <WiFiManager.h>         // https://github.com/tzapu/WiFiManager
 
 // types
 typedef void ( *SubscriptionCallbackType )( byte* payload, unsigned int length );
@@ -18,9 +19,13 @@ class MyWifiHelper
         
         WiFiClient client;
 
-        MyWifiHelper(char* host);
+        MyWifiHelper(char* hostname);
+        MyWifiHelper(char* hostname, bool addChipId);
         int setupWifi();
         int setupWifi(char* ssidnObjectame);
+        int setupWifiManagerOnDemand();
+        int setupWifiManagerAutoConnect();
+
         IPAddress getWifiIP();
 
 		void setupOTA(char* host);
