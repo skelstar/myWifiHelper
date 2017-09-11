@@ -1,5 +1,11 @@
-#include "ESP8266WiFi.h"
-#include "ESP8266mDNS.h"
+#include <stdlib.h>
+
+#if defined(ESP8266)
+    #include <ESP8266WiFi.h>
+#elif defined(ESP32)
+    #include <WiFi.h>
+#endif
+
 #include "PubSubClient.h"
 #include "WiFiUdp.h"
 #include "ArduinoOTA.h"
@@ -7,7 +13,6 @@
 #include "wificonfig.h"
 #include "ArduinoJson.h"            // https://github.com/bblanchon/ArduinoJson
 #include "string.h"
-#include "WiFiManager.h"         // https://github.com/tzapu/WiFiManager
 
 //--------------------------------------------------------------------------------
 
@@ -23,6 +28,7 @@ WiFiClient client;
 PubSubClient mqttclient(client);
 
 // Function Signatures
+void getTopicWithId(char* topic, char* buff);
 void mqttCallback(char *topic, byte* payload, unsigned int length);
 void reconnectMqtt();
 bool reconnectMqttNonBlocking();
@@ -50,11 +56,11 @@ int MyWifiHelper::setupWifi() {
 // onDemandAP: whether it automatically presents an access point on startup
 int MyWifiHelper::setupWifiManagerOnDemand() {
 
-    WiFiManager wifiManager;
-	wifiManager.startConfigPortal("OnDemandAP"); // automatically presents an access point on startup
-    WiFi.hostname(_hostname);
-    Serial.println("connected with wifi manager...yeey :)");
-    Serial.println(WiFi.localIP());
+ //    WiFiManager wifiManager;
+	// wifiManager.startConfigPortal("OnDemandAP"); // automatically presents an access point on startup
+ //    WiFi.hostname(_hostname);
+ //    //Serial.println("connected with wifi manager...yeey :)");
+ //    //Serial.println(WiFi.localIP());
 }
 
 // onDemandAP: whether it automatically presents an access point on startup
@@ -67,40 +73,42 @@ int MyWifiHelper::setupWifiManagerAutoConnect() {
 	// sprintf(___hostname, "%s", "");
 	// sprintf(___hostname, "%s-%X%X%X", _hostname, mac[3], mac[4], mac[5]);
 
-    WiFiManager wifiManager;
-	wifiManager.autoConnect(_hostname);	
-    WiFi.hostname(_hostname);
-    Serial.println("connected with wifi manager...yeey :)");
-    Serial.println(WiFi.localIP());
+ //    WiFiManager wifiManager;
+	// wifiManager.autoConnect(_hostname);	
+ //    WiFi.hostname(_hostname);
+ //    //Serial.println("connected with wifi manager...yeey :)");
+ //    //Serial.println(WiFi.localIP());
 }
 
 int MyWifiHelper::setupWifi(char* ssidname) {
 
-    WiFi.hostname(_hostname);
+	#if defined(ESP8266)
+    	WiFi.hostname(_hostname);
+	#endif
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssidname, password);
-    Serial.print("Connecting to: "); Serial.println(ssidname);
+    //Serial.print("Connecting to: "); //Serial.println(ssidname);
     while (WiFi.waitForConnectResult() != WL_CONNECTED) {
-        Serial.println("Connection Failed! Rebooting...");
+        //Serial.println("Connection Failed! Rebooting...");
         delay(WIFI_RECONNECT_TIME);
         ESP.restart();
     }
 
     byte mac[6];
-    Serial.print("Success: "); 
-    Serial.print(WiFi.localIP());
-    Serial.print(", MAC - ");
-    Serial.print(mac[5],HEX);
-    Serial.print(":");
-    Serial.print(mac[4],HEX);
-    Serial.print(":");
-    Serial.print(mac[3],HEX);
-    Serial.print(":");
-    Serial.print(mac[2],HEX);
-    Serial.print(":");
-    Serial.print(mac[1],HEX);
-    Serial.print(":");
-    Serial.println(mac[0],HEX);
+	Serial.print("Success: "); 
+	Serial.print(WiFi.localIP());
+	Serial.print(", MAC - ");
+	Serial.print(mac[5],HEX);
+	Serial.print(":");
+	Serial.print(mac[4],HEX);
+	Serial.print(":");
+	Serial.print(mac[3],HEX);
+	Serial.print(":");
+	Serial.print(mac[2],HEX);
+	Serial.print(":");
+	Serial.print(mac[1],HEX);
+	Serial.print(":");
+	Serial.println(mac[0],HEX);
     return SUCCESSFUL_CONNECT;
 }
 
@@ -110,7 +118,7 @@ IPAddress MyWifiHelper::getWifiIP() {
 
 void MyWifiHelper::setupOTA(char* host) {
 
-    Serial.println("setupOTA()...");
+    //Serial.println("setupOTA()...");
     ArduinoOTA.setHostname(host);
     
     ArduinoOTA.onStart([]() {
@@ -127,10 +135,10 @@ void MyWifiHelper::setupOTA(char* host) {
     ArduinoOTA.onError([](ota_error_t error) {
         Serial.printf("Error[%u]: ", error);
         if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-        else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-        else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-        else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-        else if (error == OTA_END_ERROR) Serial.println("End Failed");
+		else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+		else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+		else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+		else if (error == OTA_END_ERROR) Serial.println("End Failed");
     });
 
     ArduinoOTA.begin();
@@ -143,8 +151,9 @@ void MyWifiHelper::handleOTA() {
 }
 
 void MyWifiHelper::setupMqtt(char* baseTopic) {
+	Serial.print("setupMqtt (baseTopic): "); Serial.println(baseTopic);
 	_baseTopic = baseTopic;
-	Serial.print("BaseTopic: ");	Serial.println(_baseTopic);
+	//Serial.print("BaseTopic: ");	//Serial.println(_baseTopic);
     mqttclient.setServer(MQTT_SERVER, 1883);    // ie "192.168.1.105"
     mqttclient.setCallback(mqttCallback);
 }
@@ -187,49 +196,72 @@ void MyWifiHelper::mqttPublish(char* topic, char* payload) {
 
 void MyWifiHelper::mqttPublish(char* topic, char* payload, bool showDebug) {
     if (showDebug) {
-        Serial.print("Publishing to "); 
-        Serial.print(topic);
-        Serial.print(", payload: ");
-        Serial.println(payload);
+        //Serial.print("Publishing to "); 
+        //Serial.print(topic);
+        //Serial.print(", payload: ");
+        //Serial.println(payload);
     }
     mqttclient.publish(topic, payload);
 }
 
-void MyWifiHelper::mqttPublishBaseAnd(char* verb, char* payload) {
-	char topic[100];
-	sprintf(topic, "%s", "");	// clear topic
-	sprintf(topic, "%s/%s", _baseTopic, verb);
-
-    mqttclient.publish(topic, payload);
-	// Serial.print("Publishing to "); 
-	// Serial.print(topic);
-	// Serial.print(", payload: ");
-	// Serial.println(payload);
+void MyWifiHelper::mqttPublishWithId(char* topic, char* payload) {
+	char buff[100];
+	// int len = strlen(topic) + 4;
+	// sprintf(buff, topic, ESP.getChipId());
+	// buff[len] = '\0';
+	getTopicWithId(topic, buff);
+    mqttclient.publish(buff, payload);
 }
 
-bool MyWifiHelper::mqttAddSubscriptionBaseAnd(char* verb, SubscriptionCallbackType callback) {
-	char topic[20];
-	sprintf(topic, "%s", "");	// clear topic
-	sprintf(topic, "%s/%s", _baseTopic, verb);
+// void MyWifiHelper::mqttPublishBaseAnd(char* verb, char* payload) {
+// 	char topic[100];
+// 	sprintf(topic, "%s", "");	// clear topic
+// 	sprintf(topic, "%s/%s", _baseTopic, verb);
 
-    if (mqttSubHead != MAX_SUBSCRIPTIONS-1) {
+//     mqttclient.publish(topic, payload);
+// 	// //Serial.print("Publishing to "); 
+// 	// //Serial.print(topic);
+// 	// //Serial.print(", payload: ");
+// 	// //Serial.println(payload);
+// }
 
-        subscription[mqttSubHead].topic = topic;
-        subscription[mqttSubHead].callback = callback;
-        Serial.print("Subscribing to: ");
-        Serial.println(topic);
-        mqttSubHead++;
-        return true;
-    }
-    return false;
-}
+// bool MyWifiHelper::mqttAddSubscriptionBaseAnd(char* verb, SubscriptionCallbackType callback) {
+// 	char topic[20];
+// 	sprintf(topic, "%s", "");	// clear topic
+// 	sprintf(topic, "%s/%s", _baseTopic, verb);
+
+//     if (mqttSubHead != MAX_SUBSCRIPTIONS-1) {
+
+//         subscription[mqttSubHead].topic = topic;
+//         subscription[mqttSubHead].callback = callback;
+//         //Serial.print("Subscribing to: ");
+//         //Serial.println(topic);
+//         mqttSubHead++;
+//         return true;
+//     }
+//     return false;
+// }
+
+// bool MyWifiHelper::mqttAddSubscriptionWithId(char* topic, SubscriptionCallbackType callback) {
+
+//     if (mqttSubHead != MAX_SUBSCRIPTIONS-1) {
+//     	char buff[100];
+//     	getTopicWithId(topic, buff);
+//         subscription[mqttSubHead].topic = buff;
+//         subscription[mqttSubHead].callback = callback;
+//         Serial.print("Subscribing to: "); Serial.println(buff);
+//         mqttSubHead++;
+//         return true;
+//     }
+//     return false;
+// }
+
 bool MyWifiHelper::mqttAddSubscription(char* topic, SubscriptionCallbackType callback) {
 
     if (mqttSubHead != MAX_SUBSCRIPTIONS-1) {
         subscription[mqttSubHead].topic = topic;
         subscription[mqttSubHead].callback = callback;
-        Serial.print("Subscribing to: ");
-        Serial.println(topic);
+        Serial.print("Subscribing to: "); Serial.println(topic);
         mqttSubHead++;
         return true;
     }
@@ -237,13 +269,13 @@ bool MyWifiHelper::mqttAddSubscription(char* topic, SubscriptionCallbackType cal
 }
 
 const char* MyWifiHelper::mqttGetJsonCommand(byte *payload) {
-    StaticJsonBuffer<100> jsonBuffer;
+    StaticJsonBuffer<200> jsonBuffer;
 
     JsonObject& root = jsonBuffer.parseObject(payload);
 
     if (!root.success()) {
-        Serial.println("parseObject() failed");
-        Serial.println((char*)payload);
+        //Serial.println("parseObject() failed");
+        //Serial.println((char*)payload);
         return "";
     }
 
@@ -263,8 +295,8 @@ const char* MyWifiHelper::mqttGetJsonParam(char *payload, const char* param) {
     JsonObject& root = jsonBuffer.parseObject(payload);
 
     if (!root.success()) {
-        Serial.println("parseObject() failed");
-        Serial.println((char*)payload);
+        //Serial.println("parseObject() failed");
+        //Serial.println((char*)payload);
         return "";
     }
 
@@ -272,13 +304,13 @@ const char* MyWifiHelper::mqttGetJsonParam(char *payload, const char* param) {
 }
 
 JsonObject& MyWifiHelper::mqttGetJson(byte *payload) {
-    StaticJsonBuffer<100> jsonBuffer;
+    StaticJsonBuffer<200> jsonBuffer;
 
     JsonObject& root = jsonBuffer.parseObject(payload);
 
     if (!root.success()) {
-        Serial.println("parseObject() failed");
-        Serial.println((char*)payload);
+        //Serial.println("parseObject() failed");
+        //Serial.println((char*)payload);
     }
     
     return root;
@@ -290,10 +322,16 @@ void MyWifiHelper::mqttSendToConsole(char* payload) {
 
 //--------------------------------------------------------------------------------
 
+void getTopicWithId(char* topic, char* buff) {
+	int len = strlen(topic) + 4;
+	sprintf(buff, topic, ESP.getChipId());
+	buff[len] = '\0';
+}
+
 bool reconnectMqttNonBlocking() {
     if (!mqttclient.connected()) {
         if (mqttclient.connect(_hostname, MQTT_USERNAME, MQTT_PASSWORD)) {
-            //Serial.println("connected");
+            ////Serial.println("connected");
             resubscribeToTopics();
         } 
         return mqttclient.connected();
@@ -303,15 +341,15 @@ bool reconnectMqttNonBlocking() {
 void reconnectMqtt() {
 
     while (!mqttclient.connected()) {
-        Serial.print("Attempting MQTT connection...");
+        //Serial.print("Attempting MQTT connection...");
         // Attempt to connect
         if (mqttclient.connect(_hostname, MQTT_USERNAME, MQTT_PASSWORD)) {
-            Serial.println("connected");
+            //Serial.println("connected");
             resubscribeToTopics();
         } else {
-            Serial.print("failed, rc=");
-            Serial.print(mqttclient.state());
-            Serial.println(" try again in 5 seconds");
+            //Serial.print("failed, rc=");
+            //Serial.print(mqttclient.state());
+            //Serial.println(" try again in 5 seconds");
             // Wait 5 seconds before retrying
             delay(MQTT_RECONNECT_TIME);
         }

@@ -2,13 +2,17 @@
 #define myWifiHelper_h
 
 #include <stdlib.h>
-#include <ESP8266WiFi.h>
-#include <ESP8266mDNS.h>
-#include <WiFiUdp.h>
+#if defined(ESP8266)
+    #include <ESP8266WiFi.h>
+#elif defined(ESP32)
+    #include <WiFi.h>
+#endif
+// #include <ESP8266mDNS.h>
+// #include <WiFiUdp.h>
 #include <PubSubClient.h>
 #include <ArduinoOTA.h>
 #include <ArduinoJson.h>         // https://github.com/bblanchon/ArduinoJson
-#include <WiFiManager.h>         // https://github.com/tzapu/WiFiManager
+// #include <WiFiManager.h>         // https://github.com/tzapu/WiFiManager
 
 // types
 typedef void ( *SubscriptionCallbackType )( byte* payload, unsigned int length );
@@ -38,9 +42,11 @@ class MyWifiHelper
         bool loopMqttNonBlocking();
         void mqttPublish(char* topic, char* payload);
         void mqttPublish(char* topic, char* payload, bool showDebug);
-        void mqttPublishBaseAnd(char* verb, char* payload);
-        bool mqttAddSubscriptionBaseAnd(char* verb, SubscriptionCallbackType callback);
+        void mqttPublishWithId(char* topic, char* payload);
+        // void mqttPublishBaseAnd(char* verb, char* payload);
+        // bool mqttAddSubscriptionBaseAnd(char* verb, SubscriptionCallbackType callback);
 		bool mqttAddSubscription(char* topic, SubscriptionCallbackType callback);
+        // bool mqttAddSubscriptionWithId(char* topic, SubscriptionCallbackType callback);
 
         const char* mqttGetJsonCommand(byte *payload);
         const char* mqttGetJsonCommandValue();
