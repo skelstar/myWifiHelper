@@ -1,0 +1,18 @@
+{
+  "name": "myWifiHelper",
+  "keywords": "",
+  "description": "Arduino Library for Wifi management",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/skelstar/myWifiHelper.git"
+  },
+  "authors":
+  [
+    {
+      "name": "Sean Kelly"
+    }
+  ],
+  "frameworks": "arduino",
+  "platforms": "*"
+}
